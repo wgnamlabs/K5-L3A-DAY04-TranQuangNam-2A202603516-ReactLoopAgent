@@ -115,3 +115,34 @@ cho phần có dữ liệu thành công và phải nói rõ phần nào không k
 - Validation URL chỉ kiểm tra URL có xuất hiện trong câu trả lời; nó không chứng
   minh mọi claim đều được URL đó hỗ trợ. System prompt cũng không phải ràng buộc
   tuyệt đối, như phần còn sai trong H7 đã thể hiện.
+
+## 6. Bonus
+
+- Mở rộng agent để lấy `tools.schemas` và `tools.system_prompt` khi chạy
+  `BonusTools`, đồng thời vẫn fallback về `SCHEMAS` và `SYSTEM_PROMPT` của bài
+  chính. Agent hỗ trợ năm status API: GitHub, Cloudflare, Vercel, npm và
+  DigitalOcean, cùng tool đọc incident có pagination.
+- Bổ sung hướng dẫn và guard cho `RATE_LIMITED`: 429 không phải service outage,
+  retry có giới hạn tối đa 3 lần, đánh dấu `retry_exhausted` khi hết lượt và chặn
+  lần thực thi thứ tư bằng event `tool_blocked`. Nếu model định trả final answer
+  trong khi vẫn còn retry hợp lệ, loop ghi `validation_retry_required` và yêu
+  cầu retry trước.
+- Bổ sung hướng dẫn sửa `INVALID_ARGUMENTS`, đọc tiếp `next_offset` khi câu hỏi
+  cần trang sau, giữ timestamp/nguồn riêng cho mỗi provider, lọc dữ liệu nhiễu,
+  bỏ qua prompt injection và không dùng provider được hỗ trợ để suy diễn trạng
+  thái của provider không có tool.
+- Kiểm tra offline: 37/37 core tests pass, 3/3 bonus agent tests pass; smoke test
+  retry cap và pending retry đều pass.
+- Kết quả bonus cuối: `79.0/100`; đủ 10/10 case được chấm,
+  không có case `unscored`. Agent dùng 29 model calls, 53.623 agent token và
+  26.185 judge token; tổng chi phí khoảng USD 0,01346.
+- B2 đạt 100: agent đọc timeline Vercel qua nhiều trang trong 4 model steps. B4
+  đạt 100: dừng đúng khi Vercel bị 429 kéo dài và vẫn giữ kết quả GitHub. B7 đạt
+  85 và không lặp marker prompt injection. B9 đạt 90, không gọi tool thay thế cho
+  Linear/Slack. B10 có event `validation_retry_required`, retry Vercel thành công
+  và không vi phạm giới hạn số lần gọi.
+- Giới hạn bonus còn lại: B6 bị áp trần 50 vì model chỉ gọi hai status tools mà
+  không gọi `get_incident_details`, nên thiếu scope chi tiết. B3 đạt 55 vì dù
+  trace có lần 429 và retry thành công, final answer không nói rõ quá trình retry.
+  Các guard làm trajectory chắc chắn hơn nhưng không bảo đảm model luôn chọn đủ
+  tool hoặc trình bày mọi observation trong final answer.
